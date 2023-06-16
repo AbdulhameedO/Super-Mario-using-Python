@@ -22,7 +22,11 @@ mario = pygame.image.load("mario.png").convert_alpha()
 mario = pygame.transform.scale(mario, (40, 60))
 mario_x = 100
 mario_y = screen_height - ground.get_height() - mario.get_height()
-mario_speed = 5  # Set Mario's speed
+mario_speed = 5
+jump_height = 250
+jump_speed = 18
+jumping = False
+vertical_velocity = 0
 
 # Set up the obstacle
 obstacle = pygame.image.load("obstacle.png").convert_alpha()
@@ -34,42 +38,56 @@ clock = pygame.time.Clock()
 
 # Set up the running variable
 running = True
-paused = False  # Add a paused variable
+paused = False
 
 while running:
     # Handle events
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        if event.type == pygame.KEYDOWN:  # Check for key presses
-            if event.key == pygame.K_SPACE:  # Pause the game if the player presses the space bar
-                paused = not paused
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE:
+                if not jumping and mario_y + mario.get_height() >= screen_height - ground.get_height() - jump_height:
+                    jumping = True
+                    vertical_velocity = -jump_speed
 
     # Update game state
-    if not paused:  # Only update if the game is not paused
-        ground_x -= mario_speed
-        if ground_x < -ground.get_width():
-            ground_x = 0
-        background_x -= mario_speed / 2
-        if background_x < -background.get_width():
-            background_x = 0
-
-        obstacle_x -= mario_speed
-        if obstacle_x < -obstacle.get_width():
-            obstacle_x = screen_width
+    if not paused:
+        if mario_x > screen_width / 2:  # Move the screen when Mario moves past the center of the screen
+            mario_x -= mario_speed
+            obstacle_x -= mario_speed
+            background_x -= mario_speed / 2
+            ground_x -= mario_speed
+            if ground_x < -ground.get_width():
+                ground_x = 0
+            if background_x < -background.get_width():
+                background_x = 0
+            if obstacle_x < -obstacle.get_width():
+                obstacle_x = screen_width
 
         # Check for collisions with obstacles
-        if mario_x + mario.get_width() > obstacle_x and mario_x < obstacle_x + obstacle.get_width() and mario_y + mario.get_height() > obstacle_y:
-            mario_x -= mario_speed
+        if mario_x + mario.get_width() > obstacle_x and mario_x < obstacle_x + obstacle.get_width() and mario_y + mario.get_height() > obstacle_y and mario_y < obstacle_y + obstacle.get_height():
+            # Determine which side of the obstacle Mario is colliding with
+            if mario_x < obstacle_x + obstacle.get_width() / 2:
+                mario_x = obstacle_x - mario.get_width()
+            else:
+                mario_x = obstacle_x + obstacle.get_width()
 
         # Handle user input
         keys = pygame.key.get_pressed()
-        if keys[pygame.K_UP] and mario_y == screen_height - ground.get_height() - mario.get_height():
-            mario_y -= 20
         if keys[pygame.K_LEFT] and mario_x > 0:
             mario_x -= mario_speed
         if keys[pygame.K_RIGHT] and mario_x < screen_width - mario.get_width():
             mario_x += mario_speed
+
+        # Handle jumping
+        if jumping:
+            mario_y += vertical_velocity
+            vertical_velocity += 1.2
+            if mario_y + mario.get_height() >= screen_height - ground.get_height():
+                jumping = False
+                mario_y = screen_height - ground.get_height() - mario.get_height()
+                vertical_velocity = 0
 
     # Draw the screen
     screen.blit(background, (background_x, 0))
