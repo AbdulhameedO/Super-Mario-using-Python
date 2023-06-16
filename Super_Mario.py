@@ -1,4 +1,38 @@
 import pygame
+import random
+
+# Define constants
+ENEMY_WIDTH = 30
+ENEMY_HEIGHT = 40
+
+class Coin:
+    def __init__(self, x, y, speed):
+        self.image = pygame.image.load("coin.png").convert_alpha()
+        self.image = pygame.transform.scale(self.image, (40, 40))
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        self.speed = speed
+
+    def update(self):
+        self.rect.x -= self.speed
+
+class Enemy:
+    def __init__(self, x, y, speed):
+        self.image = pygame.image.load("enemy.png").convert_alpha()
+        self.image = pygame.transform.scale(self.image, (ENEMY_WIDTH, ENEMY_HEIGHT))
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y - self.rect.height
+        self.speed = speed
+
+    def update(self):
+        self.rect.x -= self.speed
+
+class GroundEnemy(Enemy):
+    def __init__(self, x, y, speed):
+        super().__init__(x, y, speed)
+        self.rect.y = y - self.rect.height + 10 # Adjust the y-coordinate to make the enemy appear on the ground
 
 # Initialize Pygame
 pygame.init()
@@ -33,12 +67,27 @@ obstacle = pygame.image.load("obstacle.png").convert_alpha()
 obstacle_x = 800
 obstacle_y = screen_height - ground.get_height() - obstacle.get_height()
 
+# Set up the enemies
+enemies = []
+enemy_speed = 7
+enemy_delay = 100
+enemy_timer = 0
+
+coins = []
+coin_speed = 7
+coin_delay = 200
+coin_timer = 0
+
+# Set up the font
+font = pygame.font.SysFont(None, 48)
+
 # Set up the clock
 clock = pygame.time.Clock()
 
 # Set up the running variable
 running = True
 paused = False
+lives = 3
 
 while running:
     # Handle events
@@ -65,6 +114,29 @@ while running:
             if obstacle_x < -obstacle.get_width():
                 obstacle_x = screen_width
 
+        # Update enemies
+        enemy_timer += 1
+        if enemy_timer >= enemy_delay:
+            enemy_timer = 0
+            enemy_y = screen_height - ground.get_height() - mario.get_height()
+            # Create a mixture of normal enemies and ground enemies
+            if len(enemies) % 2 == 0:
+                enemy = Enemy(screen_width, enemy_y, enemy_speed)
+            else:
+                enemy = GroundEnemy(screen_width, enemy_y, enemy_speed)
+            enemies.append(enemy)
+
+        for enemy in enemies:
+            enemy.update()
+            if enemy.rect.colliderect(mario.get_rect()):
+                lives -= 1
+                if lives == 0:
+                    running = False
+                else:
+                    enemies.remove(enemy)
+            if enemy.rect.x < -enemy.rect.width:
+                enemies.remove(enemy)
+
         # Check for collisions with obstacles
         if mario_x + mario.get_width() > obstacle_x and mario_x < obstacle_x + obstacle.get_width() and mario_y + mario.get_height() > obstacle_y and mario_y < obstacle_y + obstacle.get_height():
             # Determine which side of the obstacle Mario is colliding with
@@ -72,6 +144,15 @@ while running:
                 mario_x = obstacle_x - mario.get_width()
             else:
                 mario_x = obstacle_x + obstacle.get_width()
+
+        # Check for collisions with enemies
+        for enemy in enemies:
+            if mario_x + mario.get_width() > enemy.rect.x and  mario_x < enemy.rect.x + enemy.rect.width and mario_y + mario.get_height() > enemy.rect.y and mario_y < enemy.rect.y + enemy.rect.height:
+                lives -= 1
+                if lives == 0:
+                    running = False
+                else:
+                    enemies.remove(enemy)
 
         # Handle user input
         keys = pygame.key.get_pressed()
@@ -94,8 +175,38 @@ while running:
     screen.blit(background, (background_x + background.get_width(), 0))
     screen.blit(ground, (ground_x, screen_height - ground.get_height()))
     screen.blit(ground, (ground_x + ground.get_width(), screen_height - ground.get_height()))
+
+    # Draw enemies
+    for enemy in enemies:
+        screen.blit(enemy.image, enemy.rect)
+
     screen.blit(obstacle, (obstacle_x, obstacle_y))
     screen.blit(mario, (mario_x, mario_y))
+
+    # Update coins
+    coin_timer += 1
+    if coin_timer >= coin_delay:
+        coin_timer = 0
+        coin_y = random.randint(100, screen_height - ground.get_height() - 100)
+        coin = Coin(screen_width, coin_y, coin_speed)
+        coins.append(coin)
+
+    for coin in coins:
+        coin.update()
+        if coin.rect.colliderect(mario.get_rect()):
+            coins.remove(coin)
+            # Increase the score or add coins to the player's inventory
+
+        if coin.rect.x < -coin.rect.width:
+            coins.remove(coin)
+
+    # Draw coins
+    for coin in coins:
+        screen.blit(coin.image, coin.rect)
+    # Draw lives
+    lives_text = font.render("Lives: " + str(lives), True, (255, 255, 255))
+    screen.blit(lives_text, (10, 10))
+
     pygame.display.update()
 
     # Control the frame rate
