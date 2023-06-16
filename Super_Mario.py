@@ -5,6 +5,7 @@ import random
 ENEMY_WIDTH = 30
 ENEMY_HEIGHT = 40
 
+
 class Coin:
     def __init__(self, x, y, speed):
         self.image = pygame.image.load("coin.png").convert_alpha()
@@ -16,6 +17,7 @@ class Coin:
 
     def update(self):
         self.rect.x -= self.speed
+
 
 class Enemy:
     def __init__(self, x, y, speed):
@@ -29,10 +31,12 @@ class Enemy:
     def update(self):
         self.rect.x -= self.speed
 
+
 class GroundEnemy(Enemy):
     def __init__(self, x, y, speed):
         super().__init__(x, y, speed)
-        self.rect.y = y - self.rect.height + 10 # Adjust the y-coordinate to make the enemy appear on the ground
+        self.rect.y = y - self.rect.height + 10  # Adjust the y-coordinate to make the enemy appear on the ground
+
 
 # Initialize Pygame
 pygame.init()
@@ -69,12 +73,12 @@ obstacle_y = screen_height - ground.get_height() - obstacle.get_height()
 
 # Set up the enemies
 enemies = []
-enemy_speed = 7
+enemy_speed = 8
 enemy_delay = 100
 enemy_timer = 0
 
 coins = []
-coin_speed = 7
+coin_speed = 6
 coin_delay = 200
 coin_timer = 0
 
@@ -88,6 +92,7 @@ clock = pygame.time.Clock()
 running = True
 paused = False
 lives = 3
+score = 0
 
 while running:
     # Handle events
@@ -137,6 +142,25 @@ while running:
             if enemy.rect.x < -enemy.rect.width:
                 enemies.remove(enemy)
 
+        coin_timer += 1
+        if coin_timer >= coin_delay:
+            coin_timer = 0
+            coin_y = screen_height - ground.get_height() - mario.get_height()
+            # Create a mixture of normal enemies and ground enemies
+            if len(coins) % 2 == 0:
+                coin = Coin(screen_width, enemy_y, enemy_speed)
+            else:
+                coin = GroundEnemy(screen_width, enemy_y, enemy_speed)
+            coins.append(coin)
+
+        for coin in coins:
+            coin.update()
+            if coin.rect.colliderect(mario.get_rect()):
+                score += 50
+                coins.remove(coin)
+            if coin.rect.x < -coin.rect.width:
+                coins.remove(coin)
+
         # Check for collisions with obstacles
         if mario_x + mario.get_width() > obstacle_x and mario_x < obstacle_x + obstacle.get_width() and mario_y + mario.get_height() > obstacle_y and mario_y < obstacle_y + obstacle.get_height():
             # Determine which side of the obstacle Mario is colliding with
@@ -147,12 +171,18 @@ while running:
 
         # Check for collisions with enemies
         for enemy in enemies:
-            if mario_x + mario.get_width() > enemy.rect.x and  mario_x < enemy.rect.x + enemy.rect.width and mario_y + mario.get_height() > enemy.rect.y and mario_y < enemy.rect.y + enemy.rect.height:
+            if mario_x + mario.get_width() > enemy.rect.x and mario_x < enemy.rect.x + enemy.rect.width and mario_y + mario.get_height() > enemy.rect.y and mario_y < enemy.rect.y + enemy.rect.height:
                 lives -= 1
                 if lives == 0:
                     running = False
                 else:
                     enemies.remove(enemy)
+
+        # Check for collisions with coins
+        for coin in coins:
+            if mario_x + mario.get_width() > coin.rect.x and mario_x < coin.rect.x + coin.rect.width and mario_y + mario.get_height() > coin.rect.y and mario_y < coin.rect.y + coin.rect.height:
+                score += 50
+                coins.remove(coin)
 
         # Handle user input
         keys = pygame.key.get_pressed()
@@ -187,7 +217,7 @@ while running:
     coin_timer += 1
     if coin_timer >= coin_delay:
         coin_timer = 0
-        coin_y = random.randint(100, screen_height - ground.get_height() - 100)
+        coin_y = random.randint(0, screen_height - ground.get_height() - 100)
         coin = Coin(screen_width, coin_y, coin_speed)
         coins.append(coin)
 
@@ -204,9 +234,13 @@ while running:
     for coin in coins:
         screen.blit(coin.image, coin.rect)
     # Draw lives
+    if score > 99:
+        score = 0
+        lives += 1
     lives_text = font.render("Lives: " + str(lives), True, (255, 255, 255))
+    score_text = font.render("Score: " + str(score), True, (255, 255, 255))
     screen.blit(lives_text, (10, 10))
-
+    screen.blit(score_text, (10, 50))
     pygame.display.update()
 
     # Control the frame rate
